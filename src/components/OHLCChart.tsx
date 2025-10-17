@@ -208,19 +208,9 @@ export const OHLCChart = memo(() => {
       ctx.stroke();
     }
     
-    // Vertical grid lines (based on time)
-    const verticalLines = Math.min(10, visibleBars.length);
+    // Vertical grid lines removed per user request
+    const verticalLines = Math.min(10, visibleBars.length); // Still used for time scale labels
     const barsPerLine = Math.max(1, Math.floor(visibleBars.length / verticalLines));
-    for (let i = 0; i <= verticalLines; i++) {
-      const barIndex = i * barsPerLine;
-      if (barIndex < visibleBars.length) {
-        const x = leftPadding + barIndex * barSpacing + barSpacing / 2;
-        ctx.beginPath();
-        ctx.moveTo(x, topPadding);
-        ctx.lineTo(x, topPadding + chartHeight);
-        ctx.stroke();
-      }
-    }
     
     // Draw price scale background (right side)
     ctx.fillStyle = '#1C1E27';
