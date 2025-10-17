@@ -2,12 +2,15 @@ import { useDashboardStore } from './stores/dashboardStore';
 import { useWebSocket } from './hooks/useWebSocket';
 import { usePerformanceMonitor } from './hooks/usePerformanceMonitor';
 import { OHLCChart } from './components/OHLCChart';
+import { MultiChartGrid } from './components/MultiChartGrid';
 import { MarketDataTable } from './components/MarketDataTable';
 import { ConnectionStatus } from './components/ConnectionStatus';
+import { useState } from 'react';
 import './App.css';
 
 function App() {
   const selectedSymbol = useDashboardStore((state) => state.selectedSymbol);
+  const [viewMode, setViewMode] = useState<'single' | 'multi'>('single');
   
   console.log('App rendering, selectedSymbol:', selectedSymbol);
   
@@ -26,13 +29,67 @@ function App() {
     <div className="dashboard">
       <header className="dashboard-header">
         <h1>Real-Time Trading Dashboard - Tick Prices</h1>
-        <ConnectionStatus />
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {/* View mode toggle */}
+          <div style={{
+            display: 'flex',
+            background: '#2A2E39',
+            borderRadius: '4px',
+            padding: '2px',
+            border: '1px solid #363A45',
+          }}>
+            <button
+              onClick={() => setViewMode('single')}
+              style={{
+                background: viewMode === 'single' ? '#2962FF' : 'transparent',
+                color: viewMode === 'single' ? '#FFFFFF' : '#787B86',
+                border: 'none',
+                borderRadius: '3px',
+                padding: '5px 12px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                fontWeight: 500,
+                transition: 'all 0.2s',
+              }}
+            >
+              📊 Single Chart
+            </button>
+            <button
+              onClick={() => setViewMode('multi')}
+              style={{
+                background: viewMode === 'multi' ? '#2962FF' : 'transparent',
+                color: viewMode === 'multi' ? '#FFFFFF' : '#787B86',
+                border: 'none',
+                borderRadius: '3px',
+                padding: '5px 12px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                fontWeight: 500,
+                transition: 'all 0.2s',
+              }}
+            >
+              📈 Multi Charts
+            </button>
+          </div>
+          <ConnectionStatus />
+        </div>
       </header>
       
       <div className="dashboard-grid">
         <div className="chart-section">
-          <h2>{selectedSymbol || 'OHLC Bars Chart'}</h2>
-          <OHLCChart />
+          <h2>
+            {viewMode === 'single' 
+              ? (selectedSymbol || 'OHLC Bars Chart')
+              : 'All Symbols - 1m Charts'
+            }
+          </h2>
+          {viewMode === 'single' ? (
+            <OHLCChart />
+          ) : (
+            <MultiChartGrid />
+          )}
         </div>
         
         <div className="data-section">
