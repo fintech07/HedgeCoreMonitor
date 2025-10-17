@@ -80,13 +80,38 @@ src/
 
 ## 🔧 Configuration
 
-### WebSocket Connection
+### WebSocket Proxy Setup
 
-Update the WebSocket URL in `App.tsx`:
+Since Kafka cannot run directly in browsers, you need a WebSocket proxy server:
 
-```typescript
-useWebSocket({ url: 'wss://your-websocket-server.com' });
+**Option 1: Use the included Node.js proxy (Recommended)**
+
+1. **Install server dependencies:**
+```bash
+cd server
+npm install
 ```
+
+2. **Update Kafka broker in `server/server.js`:**
+```javascript
+const KAFKA_BROKERS = ['your-kafka-broker:9092'];
+```
+
+3. **Start the proxy server:**
+```bash
+npm start
+```
+
+4. **Update WebSocket URL in `src/App.tsx`:**
+```typescript
+useWebSocket({ 
+  url: 'ws://localhost:8080',
+});
+```
+
+**Option 2: Use your C# backend**
+
+Add a WebSocket or SignalR endpoint that forwards Kafka messages to the dashboard. See `KAFKA_SETUP.md` for details.
 
 ### Chart Integration
 
@@ -106,17 +131,43 @@ The project includes a simple Canvas-based chart for demonstration. To use the f
 6. **SWC compiler** - 20x faster than Babel
 7. **Vite + Rolldown** - Instant HMR and optimized builds
 
-## 📊 Adding Real Data
+## 📊 Kafka Integration
 
-Replace the mock data generator in `App.tsx`:
+The dashboard automatically subscribes to two Kafka topics:
 
-```typescript
-// Remove mock data
-// const generateMockData = () => {...}
+### Topics
+- **`prices.tick`** - Symbol tick data (individual symbols)
+- **`prices.pair`** - Pair tick data (symbol pairs like BTC/ETH)
 
-// Use real WebSocket data instead
-const { sendMessage } = useWebSocket({ url: 'wss://your-api.com' });
+### Message Format
+
+**SymbolTick:**
+```json
+{
+  "symbol": "AAPL",
+  "bid": 150.25,
+  "ask": 150.30,
+  "bidSize": 100,
+  "askSize": 150,
+  "timestamp": "2025-10-17T10:30:00Z"
+}
 ```
+
+**PairTick:**
+```json
+{
+  "pairSymbol": "BTC/ETH",
+  "baseSymbol": "BTC",
+  "quoteSymbol": "ETH",
+  "hedgeRate": 0.05,
+  "bid": 18.5,
+  "ask": 18.6,
+  "timestamp": "2025-10-17T10:30:00Z"
+}
+```
+
+### Message Key
+The Kafka message key is the symbol name (e.g., "AAPL", "BTC/ETH")
 
 ## 🎨 Customization
 
