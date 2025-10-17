@@ -12,6 +12,7 @@ interface ChartViewport {
 
 export const OHLCChart = memo(() => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const trixCanvasRef = useRef<HTMLCanvasElement>(null);
   const selectedSymbol = useDashboardStore((state) => state.selectedSymbol);
   const ohlcDataBySymbol = useDashboardStore((state) => state.ohlcDataBySymbol);
   const indicatorSettings = useIndicatorStore((state) => state.settings);
@@ -378,26 +379,7 @@ export const OHLCChart = memo(() => {
       drawIndicatorLine(bb.lower, indicatorSettings.bollingerBands.lowerColor, 1);
     }
     
-    // 4. TRIX (overlay on price for now)
-    if (indicatorSettings.trix.enabled && !indicatorSettings.trix.showInSeparatePane) {
-      const trixValues = calculateTRIX(allOhlcData, indicatorSettings.trix.period);
-      // Scale TRIX to fit in price range (normalize)
-      const trixFiltered = trixValues.filter(v => v !== null) as number[];
-      if (trixFiltered.length > 0) {
-        const trixMin = Math.min(...trixFiltered);
-        const trixMax = Math.max(...trixFiltered);
-        const trixRange = trixMax - trixMin || 1;
-        
-        // Map TRIX to price range
-        const scaledTrix = trixValues.map(v => {
-          if (v === null) return null;
-          const normalized = (v - trixMin) / trixRange;
-          return minPriceWithPadding + normalized * adjustedPriceRange;
-        });
-        
-        drawIndicatorLine(scaledTrix, indicatorSettings.trix.color, 1);
-      }
-    }
+    // TRIX is now rendered in a separate pane below
 
     // Draw price scale labels (right side - TradingView style)
     ctx.fillStyle = '#787B86';
@@ -620,7 +602,150 @@ export const OHLCChart = memo(() => {
       rect.height - timeScaleHeight - 5
     );
 
-  }, [ohlcDataBySymbol, selectedSymbol, viewport, crosshair, indicatorSettings]);  return (
+  }, [ohlcDataBySymbol, selectedSymbol, viewport, crosshair, indicatorSettings]);
+
+  // Render TRIX in separate pane
+  useEffect(() => {
+    if (!trixCanvasRef.current || !indicatorSettings.trix.enabled) return;
+
+    const canvas = trixCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Get OHLC data for selected symbol
+    const ohlcData = selectedSymbol ? (ohlcDataBySymbol[selectedSymbol] || []) : [];
+
+    // Set canvas size
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * window.devicePixelRatio;
+    canvas.height = rect.height * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+    // TradingView-style background
+    ctx.fillStyle = '#131722';
+    ctx.fillRect(0, 0, rect.width, rect.height);
+
+    if (!selectedSymbol || ohlcData.length < 1) {
+      return;
+    }
+
+    // Define chart areas
+    const priceScaleWidth = 70;
+    const leftPadding = 0;
+    const topPadding = 10;
+    const bottomPadding = 5;
+    const rightPadding = 0;
+    
+    const chartWidth = rect.width - leftPadding - priceScaleWidth - rightPadding;
+    const chartHeight = rect.height - topPadding - bottomPadding;
+
+    // Get visible bars based on viewport
+    const endIndex = Math.min(viewport.startIndex + viewport.barsVisible, ohlcData.length);
+    const visibleBars = ohlcData.slice(viewport.startIndex, endIndex);
+
+    if (visibleBars.length === 0) return;
+
+    const barSpacing = viewport.barWidth;
+
+    // Calculate TRIX for ALL data
+    const trixValues = calculateTRIX(ohlcData, indicatorSettings.trix.period);
+    
+    // Get min/max for visible TRIX values
+    const visibleTrixValues = trixValues
+      .slice(viewport.startIndex, endIndex)
+      .filter(v => v !== null) as number[];
+
+    if (visibleTrixValues.length === 0) return;
+
+    const trixMin = Math.min(...visibleTrixValues);
+    const trixMax = Math.max(...visibleTrixValues);
+    const trixRange = trixMax - trixMin || 1;
+    
+    // Add padding to range
+    const rangePadding = trixRange * 0.1;
+    const minWithPadding = trixMin - rangePadding;
+    const maxWithPadding = trixMax + rangePadding;
+    const adjustedRange = maxWithPadding - minWithPadding;
+
+    // Function to convert TRIX value to Y coordinate
+    const valueToY = (value: number) => {
+      return topPadding + chartHeight - ((value - minWithPadding) / adjustedRange) * chartHeight;
+    };
+
+    // Draw price scale background (right side)
+    ctx.fillStyle = '#1C1E27';
+    ctx.fillRect(leftPadding + chartWidth + rightPadding, 0, priceScaleWidth, rect.height);
+
+    // Draw zero line
+    if (trixMin <= 0 && trixMax >= 0) {
+      const zeroY = valueToY(0);
+      ctx.strokeStyle = '#434651';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(leftPadding, zeroY);
+      ctx.lineTo(leftPadding + chartWidth, zeroY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Draw TRIX line
+    ctx.strokeStyle = indicatorSettings.trix.color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    
+    let hasStarted = false;
+    visibleBars.forEach((_bar, index) => {
+      const dataIndex = viewport.startIndex + index;
+      const value = trixValues[dataIndex];
+      
+      if (value !== null) {
+        const x = leftPadding + index * barSpacing + barSpacing / 2;
+        const y = valueToY(value);
+        
+        if (!hasStarted) {
+          ctx.moveTo(x, y);
+          hasStarted = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      } else {
+        hasStarted = false;
+      }
+    });
+    
+    ctx.stroke();
+
+    // Draw scale labels
+    ctx.fillStyle = '#787B86';
+    ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    
+    // Draw 3 levels: max, mid, min
+    const levels = [maxWithPadding, (maxWithPadding + minWithPadding) / 2, minWithPadding];
+    levels.forEach(level => {
+      const y = valueToY(level);
+      ctx.fillText(level.toFixed(2), leftPadding + chartWidth + rightPadding + 8, y);
+      
+      // Draw tick mark
+      ctx.strokeStyle = '#2A2E39';
+      ctx.beginPath();
+      ctx.moveTo(leftPadding + chartWidth + rightPadding, y);
+      ctx.lineTo(leftPadding + chartWidth + rightPadding + 4, y);
+      ctx.stroke();
+    });
+
+    // Draw label
+    ctx.fillStyle = '#787B86';
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`TRIX(${indicatorSettings.trix.period})`, 12, 5);
+
+  }, [ohlcDataBySymbol, selectedSymbol, viewport, indicatorSettings.trix]);
+
+  return (
     <div style={{ position: 'relative', width: '100%' }}>
       {/* Control buttons - TradingView style */}
       <div style={{
@@ -778,13 +903,36 @@ export const OHLCChart = memo(() => {
         style={{ 
           width: '100%', 
           height: '500px',
-          borderRadius: '6px',
+          borderRadius: '6px 6px 0 0',
           cursor: isDragging ? 'grabbing' : 'crosshair',
           userSelect: 'none',
           background: '#131722',
           border: '1px solid #2A2E39',
+          borderBottom: indicatorSettings.trix.enabled ? 'none' : '1px solid #2A2E39',
         }} 
       />
+      
+      {/* TRIX Indicator Pane */}
+      {indicatorSettings.trix.enabled && (
+        <canvas 
+          ref={trixCanvasRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          style={{ 
+            width: '100%', 
+            height: '100px',
+            borderRadius: '0 0 6px 6px',
+            cursor: isDragging ? 'grabbing' : 'crosshair',
+            userSelect: 'none',
+            background: '#131722',
+            border: '1px solid #2A2E39',
+            borderTop: 'none',
+            marginTop: '0',
+          }} 
+        />
+      )}
     </div>
   );
 });

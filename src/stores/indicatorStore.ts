@@ -27,14 +27,12 @@ export interface IndicatorSettings {
     enabled: boolean;
     period: number;
     color: string;
-    showInSeparatePane: boolean;
   };
   // RSI
   rsi: {
     enabled: boolean;
     period: number;
     color: string;
-    showInSeparatePane: boolean;
   };
 }
 
@@ -71,13 +69,11 @@ const defaultSettings: IndicatorSettings = {
     enabled: false,
     period: 14,
     color: '#00E676',
-    showInSeparatePane: false,
   },
   rsi: {
     enabled: false,
     period: 14,
     color: '#9C27B0',
-    showInSeparatePane: false,
   },
 };
 

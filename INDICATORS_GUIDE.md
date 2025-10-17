@@ -72,12 +72,12 @@ Your trading dashboard now supports multiple technical indicators that overlay o
 **Default Settings**:
 - Period: 14
 - Color: Green (#00E676)
-- Display: Overlay on price chart (normalized)
+- Display: Separate pane below price chart
 
 **Usage**:
 - Enable TRIX checkbox
 - Shows momentum direction and strength
-- Currently overlaid on price (scaled to fit)
+- Rendered in dedicated pane below main chart
 
 **Interpretation**:
 - Rising TRIX = Increasing momentum (bullish)
@@ -92,12 +92,12 @@ Your trading dashboard now supports multiple technical indicators that overlay o
 **Default Settings**:
 - Period: 14
 - Color: Purple (#9C27B0)
-- Display: Overlay on price chart (normalized)
+- Display: Coming soon - will be in separate pane
 
 **Usage**:
 - Enable RSI checkbox
 - Measures overbought/oversold conditions
-- Currently overlaid on price (scaled to fit)
+- Note: RSI rendering not yet implemented
 
 **Interpretation**:
 - RSI > 70 = Overbought (potential reversal down)
