@@ -23,18 +23,18 @@ function App() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>Real-Time Trading Dashboard</h1>
+        <h1>Real-Time Trading Dashboard - Tick Prices</h1>
         <ConnectionStatus />
       </header>
       
       <div className="dashboard-grid">
         <div className="chart-section">
-          <h2>{selectedSymbol || 'Market Overview'}</h2>
+          <h2>{selectedSymbol || 'Price Chart (Mid Price)'}</h2>
           <TradingChart />
         </div>
         
         <div className="data-section">
-          <h2>Market Data</h2>
+          <h2>Live Tick Data</h2>
           <MarketDataTable />
         </div>
       </div>

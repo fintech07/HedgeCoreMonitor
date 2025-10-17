@@ -4,7 +4,7 @@ import { WebSocketServer } from 'ws';
 // Configuration
 const KAFKA_BROKERS = ['localhost:9092']; // Update with your Kafka broker
 const KAFKA_GROUP_ID = 'websocket-proxy-group';
-const KAFKA_TOPICS = ['prices.tick', 'prices.pair'];
+const KAFKA_TOPICS = ['prices.ticks', 'prices.pairs'];
 const WEBSOCKET_PORT = 8080;
 
 console.log('🚀 Starting Kafka WebSocket Proxy Server...');
@@ -34,11 +34,11 @@ let clientCount = 0;
 
 wss.on('connection', (ws) => {
   clientCount++;
-  console.log(`✅ Client connected. Total clients: ${clientCount}`);
+  //console.log(`✅ Client connected. Total clients: ${clientCount}`);
 
   ws.on('close', () => {
     clientCount--;
-    console.log(`🔌 Client disconnected. Total clients: ${clientCount}`);
+    //console.log(`🔌 Client disconnected. Total clients: ${clientCount}`);
   });
 
   ws.on('error', (error) => {
@@ -108,7 +108,7 @@ async function startKafkaConsumer() {
           const sentCount = broadcast(wsMessage);
           
           if (sentCount > 0) {
-            console.log(`📤 [${topic}] ${key} → ${sentCount} client(s)`);
+            //console.log(`📤 [${topic}] ${key} → ${sentCount} client(s)`);
           }
         } catch (error) {
           console.error('❌ Error processing Kafka message:', error);

@@ -6,7 +6,8 @@ import { useDashboardStore } from '../stores/dashboardStore';
 
 export const TradingChart = memo(() => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartData = useDashboardStore((state) => state.chartData);
+  const selectedSymbol = useDashboardStore((state) => state.selectedSymbol);
+  const chartDataBySymbol = useDashboardStore((state) => state.chartDataBySymbol);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -14,6 +15,9 @@ export const TradingChart = memo(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    // Get chart data for selected symbol only
+    const chartData = selectedSymbol ? (chartDataBySymbol[selectedSymbol] || []) : [];
 
     // Set canvas size
     const rect = canvas.getBoundingClientRect();
@@ -25,7 +29,23 @@ export const TradingChart = memo(() => {
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, rect.width, rect.height);
 
-    if (chartData.length < 2) return;
+    if (!selectedSymbol) {
+      // Show "Select a symbol..." message
+      ctx.fillStyle = '#d1d4dc';
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Select a symbol from the table to view chart', rect.width / 2, rect.height / 2);
+      return;
+    }
+
+    if (chartData.length < 2) {
+      // Show "Waiting for data..." message
+      ctx.fillStyle = '#d1d4dc';
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Waiting for ${selectedSymbol} data...`, rect.width / 2, rect.height / 2);
+      return;
+    }
 
     // Draw grid
     ctx.strokeStyle = '#2b2b43';
@@ -76,10 +96,23 @@ export const TradingChart = memo(() => {
     // Draw price labels
     ctx.fillStyle = '#d1d4dc';
     ctx.font = '12px monospace';
-    ctx.fillText(`$${maxValue.toFixed(2)}`, 10, 20);
-    ctx.fillText(`$${minValue.toFixed(2)}`, 10, rect.height - 10);
+    ctx.textAlign = 'left';
+    ctx.fillText(`High: $${maxValue.toFixed(4)}`, 10, 20);
+    ctx.fillText(`Low: $${minValue.toFixed(4)}`, 10, rect.height - 10);
+    
+    // Draw latest price
+    const latestPrice = chartData[chartData.length - 1].value;
+    ctx.fillStyle = '#4caf50';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Current: $${latestPrice.toFixed(4)}`, rect.width - 10, 20);
+    
+    // Draw data point count
+    ctx.fillStyle = '#888';
+    ctx.font = '11px monospace';
+    ctx.fillText(`${chartData.length} points`, rect.width - 10, rect.height - 10);
 
-  }, [chartData]);
+  }, [chartDataBySymbol, selectedSymbol]);
 
   return (
     <div className="chart-container">

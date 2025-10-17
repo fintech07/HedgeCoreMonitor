@@ -42,49 +42,36 @@ export const useWebSocket = ({
         try {
           const message: KafkaMessage = JSON.parse(event.data);
           
-          // Handle SymbolTick messages
-          if (message.topic === 'prices.tick') {
+          // Only handle SymbolTick messages from prices.ticks topic
+          if (message.topic === 'prices.ticks') {
             const tick = message.value as SymbolTick;
-            const midPrice = (Number(tick.bid) + Number(tick.ask)) / 2;
+            const bid = Number(tick.bid);
+            const ask = Number(tick.ask);
+            const midPrice = (bid + ask) / 2;
             
-            console.log('📊 SymbolTick:', tick.symbol, midPrice);
+            console.log(`📊 ${tick.symbol} | Bid: ${bid.toFixed(4)} | Ask: ${ask.toFixed(4)} | Mid: ${midPrice.toFixed(4)}`);
             
+            // Update market data table with full tick info
             updateMarketData(tick.symbol, {
               symbol: tick.symbol,
               price: midPrice,
+              bid: bid,
+              ask: ask,
+              bidSize: Number(tick.bidSize),
+              askSize: Number(tick.askSize),
               change: 0, // Calculate based on previous price if needed
               changePercent: 0,
               volume: Number(tick.bidSize) + Number(tick.askSize),
               timestamp: new Date(tick.timestamp).getTime(),
             });
 
-            addChartData({
+            // Add mid price to chart for this symbol
+            addChartData(tick.symbol, {
               time: Math.floor(new Date(tick.timestamp).getTime() / 1000),
-              value: Number(tick.bid),
+              value: midPrice,
             });
           }
-          
-          // Handle PairTick messages
-          else if (message.topic === 'prices.pair') {
-            const pair = message.value as PairTick;
-            const midPrice = (Number(pair.bid) + Number(pair.ask)) / 2;
-            
-            console.log('📈 PairTick:', pair.pairSymbol, midPrice);
-            
-            updateMarketData(pair.pairSymbol, {
-              symbol: pair.pairSymbol,
-              price: midPrice,
-              change: 0,
-              changePercent: 0,
-              volume: Number(pair.hedgeRate) * 1000000,
-              timestamp: new Date(pair.timestamp).getTime(),
-            });
-
-            addChartData({
-              time: Math.floor(new Date(pair.timestamp).getTime() / 1000),
-              value: Number(pair.bid),
-            });
-          }
+          // Ignore prices.pairs messages
         } catch (error) {
           console.error('❌ Error processing WebSocket message:', error);
         }
