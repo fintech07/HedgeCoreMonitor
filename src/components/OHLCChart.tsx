@@ -1,5 +1,8 @@
 import { useEffect, useRef, memo, useState, useCallback } from 'react';
 import { useDashboardStore } from '../stores/dashboardStore';
+import { useIndicatorStore } from '../stores/indicatorStore';
+import { calculateSMA, calculateEMA, calculateBollingerBands, calculateTRIX } from '../utils/indicators';
+import { IndicatorPanel } from './IndicatorPanel';
 
 interface ChartViewport {
   startIndex: number; // First visible bar index
@@ -11,6 +14,7 @@ export const OHLCChart = memo(() => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const selectedSymbol = useDashboardStore((state) => state.selectedSymbol);
   const ohlcDataBySymbol = useDashboardStore((state) => state.ohlcDataBySymbol);
+  const indicatorSettings = useIndicatorStore((state) => state.settings);
   
   // Chart interaction state
   const [viewport, setViewport] = useState<ChartViewport>({
@@ -22,6 +26,7 @@ export const OHLCChart = memo(() => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [crosshair, setCrosshair] = useState<{ x: number; y: number } | null>(null);
   const [autoScroll, setAutoScroll] = useState(true); // Auto-scroll to latest bar
+  const [showIndicatorPanel, setShowIndicatorPanel] = useState(false); // Indicator panel visibility
 
   // Handle mouse wheel for zoom
   const handleWheel = useCallback((e: WheelEvent) => {
@@ -163,7 +168,7 @@ export const OHLCChart = memo(() => {
     const timeScaleHeight = 30; // Bottom time scale
     const leftPadding = 0;
     const topPadding = 20;
-    const rightPadding = 40; // Add padding on the right for latest bar visibility
+    const rightPadding = 0; // Add padding on the right for latest bar visibility
     
     const chartWidth = rect.width - leftPadding - priceScaleWidth - rightPadding;
     const chartHeight = rect.height - topPadding - timeScaleHeight;
@@ -278,6 +283,131 @@ export const OHLCChart = memo(() => {
       ctx.lineTo(x + barWidth / 2 + 3, closeY);
       ctx.stroke();
     });
+
+    // ========== DRAW INDICATORS ==========
+    
+    // Calculate indicators for ALL data (not just visible)
+    const allOhlcData = ohlcData;
+    
+    // Helper function to draw indicator line
+    const drawIndicatorLine = (values: (number | null)[], color: string, lineWidth: number = 1.5) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      
+      let hasStarted = false;
+      visibleBars.forEach((_bar, index) => {
+        const dataIndex = viewport.startIndex + index;
+        const value = values[dataIndex];
+        
+        if (value !== null) {
+          const x = leftPadding + index * barSpacing + barSpacing / 2;
+          const y = priceToY(value);
+          
+          if (!hasStarted) {
+            ctx.moveTo(x, y);
+            hasStarted = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        } else {
+          hasStarted = false;
+        }
+      });
+      
+      ctx.stroke();
+    };
+    
+    // 1. Simple Moving Averages
+    if (indicatorSettings.sma.enabled) {
+      indicatorSettings.sma.periods.forEach((period, i) => {
+        const smaValues = calculateSMA(allOhlcData, period);
+        const color = indicatorSettings.sma.colors[i] || '#2962FF';
+        drawIndicatorLine(smaValues, color);
+      });
+    }
+    
+    // 2. Exponential Moving Averages
+    if (indicatorSettings.ema.enabled) {
+      indicatorSettings.ema.periods.forEach((period, i) => {
+        const emaValues = calculateEMA(allOhlcData, period);
+        const color = indicatorSettings.ema.colors[i] || '#00E676';
+        drawIndicatorLine(emaValues, color);
+      });
+    }
+    
+    // 3. Bollinger Bands
+    if (indicatorSettings.bollingerBands.enabled) {
+      const bb = calculateBollingerBands(
+        allOhlcData,
+        indicatorSettings.bollingerBands.period,
+        indicatorSettings.bollingerBands.stdDev
+      );
+      
+      // Draw filled area between upper and lower bands
+      ctx.fillStyle = `${indicatorSettings.bollingerBands.upperColor}${Math.round(indicatorSettings.bollingerBands.fillOpacity * 255).toString(16).padStart(2, '0')}`;
+      ctx.beginPath();
+      
+      // Draw upper band path
+      let hasStarted = false;
+      visibleBars.forEach((_bar, index) => {
+        const dataIndex = viewport.startIndex + index;
+        const upperValue = bb.upper[dataIndex];
+        
+        if (upperValue !== null) {
+          const x = leftPadding + index * barSpacing + barSpacing / 2;
+          const y = priceToY(upperValue);
+          
+          if (!hasStarted) {
+            ctx.moveTo(x, y);
+            hasStarted = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+      });
+      
+      // Draw lower band path in reverse
+      for (let index = visibleBars.length - 1; index >= 0; index--) {
+        const dataIndex = viewport.startIndex + index;
+        const lowerValue = bb.lower[dataIndex];
+        
+        if (lowerValue !== null) {
+          const x = leftPadding + index * barSpacing + barSpacing / 2;
+          const y = priceToY(lowerValue);
+          ctx.lineTo(x, y);
+        }
+      }
+      
+      ctx.closePath();
+      ctx.fill();
+      
+      // Draw the band lines
+      drawIndicatorLine(bb.upper, indicatorSettings.bollingerBands.upperColor, 1);
+      drawIndicatorLine(bb.middle, indicatorSettings.bollingerBands.middleColor, 1);
+      drawIndicatorLine(bb.lower, indicatorSettings.bollingerBands.lowerColor, 1);
+    }
+    
+    // 4. TRIX (overlay on price for now)
+    if (indicatorSettings.trix.enabled && !indicatorSettings.trix.showInSeparatePane) {
+      const trixValues = calculateTRIX(allOhlcData, indicatorSettings.trix.period);
+      // Scale TRIX to fit in price range (normalize)
+      const trixFiltered = trixValues.filter(v => v !== null) as number[];
+      if (trixFiltered.length > 0) {
+        const trixMin = Math.min(...trixFiltered);
+        const trixMax = Math.max(...trixFiltered);
+        const trixRange = trixMax - trixMin || 1;
+        
+        // Map TRIX to price range
+        const scaledTrix = trixValues.map(v => {
+          if (v === null) return null;
+          const normalized = (v - trixMin) / trixRange;
+          return minPriceWithPadding + normalized * adjustedPriceRange;
+        });
+        
+        drawIndicatorLine(scaledTrix, indicatorSettings.trix.color, 1);
+      }
+    }
 
     // Draw price scale labels (right side - TradingView style)
     ctx.fillStyle = '#787B86';
@@ -494,15 +624,13 @@ export const OHLCChart = memo(() => {
     ctx.font = '10px monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(
+      ctx.fillText(
       `1m | ${viewport.startIndex + 1}-${endIndex}/${ohlcData.length}`,
       rect.width - priceScaleWidth - 10,
       rect.height - timeScaleHeight - 5
     );
 
-  }, [ohlcDataBySymbol, selectedSymbol, viewport, crosshair]);
-
-  return (
+  }, [ohlcDataBySymbol, selectedSymbol, viewport, crosshair, indicatorSettings]);  return (
     <div style={{ position: 'relative', width: '100%' }}>
       {/* Control buttons - TradingView style */}
       <div style={{
@@ -599,7 +727,38 @@ export const OHLCChart = memo(() => {
         >
           🔍
         </button>
+        <button
+          onClick={() => setShowIndicatorPanel(!showIndicatorPanel)}
+          style={{
+            background: showIndicatorPanel ? '#2962FF' : '#2A2E39',
+            color: showIndicatorPanel ? '#FFFFFF' : '#787B86',
+            border: '1px solid #2A2E39',
+            borderRadius: '4px',
+            padding: '5px 10px',
+            fontSize: '11px',
+            cursor: 'pointer',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            fontWeight: 500,
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            if (!showIndicatorPanel) {
+              e.currentTarget.style.background = '#363A45';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!showIndicatorPanel) {
+              e.currentTarget.style.background = '#2A2E39';
+            }
+          }}
+          title="Toggle indicators"
+        >
+          📊 Indicators
+        </button>
       </div>
+
+      {/* Indicator Panel */}
+      {showIndicatorPanel && <IndicatorPanel />}
 
       {/* Instructions overlay - TradingView style */}
       <div style={{
