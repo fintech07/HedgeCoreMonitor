@@ -1,13 +1,15 @@
 import { useDashboardStore } from './stores/dashboardStore';
 import { useWebSocket } from './hooks/useWebSocket';
 import { usePerformanceMonitor } from './hooks/usePerformanceMonitor';
-import { TradingChart } from './components/TradingChartSimple';
+import { OHLCChart } from './components/OHLCChart';
 import { MarketDataTable } from './components/MarketDataTable';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import './App.css';
 
 function App() {
   const selectedSymbol = useDashboardStore((state) => state.selectedSymbol);
+  
+  console.log('App rendering, selectedSymbol:', selectedSymbol);
   
   // Connect to WebSocket proxy for Kafka messages
   // Update the URL to point to your backend WebSocket server
@@ -29,8 +31,8 @@ function App() {
       
       <div className="dashboard-grid">
         <div className="chart-section">
-          <h2>{selectedSymbol || 'Price Chart (Mid Price)'}</h2>
-          <TradingChart />
+          <h2>{selectedSymbol || 'OHLC Bars Chart'}</h2>
+          <OHLCChart />
         </div>
         
         <div className="data-section">

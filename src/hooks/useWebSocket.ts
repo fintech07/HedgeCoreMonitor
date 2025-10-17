@@ -26,6 +26,7 @@ export const useWebSocket = ({
   const setConnectionStatus = useDashboardStore((state) => state.setConnectionStatus);
   const updateMarketData = useDashboardStore((state) => state.updateMarketData);
   const addChartData = useDashboardStore((state) => state.addChartData);
+  const addTickToOHLC = useDashboardStore((state) => state.addTickToOHLC);
 
   const connect = useCallback(() => {
     try {
@@ -70,6 +71,9 @@ export const useWebSocket = ({
               time: Math.floor(new Date(tick.timestamp).getTime() / 1000),
               value: midPrice,
             });
+            
+            // Add tick to OHLC aggregation
+            addTickToOHLC(tick.symbol, midPrice, new Date(tick.timestamp).getTime());
           }
           // Ignore prices.pairs messages
         } catch (error) {
@@ -101,7 +105,7 @@ export const useWebSocket = ({
       console.error('❌ Failed to connect WebSocket:', error);
       setConnectionStatus(false);
     }
-  }, [url, reconnectInterval, maxReconnectAttempts, setConnectionStatus, updateMarketData, addChartData]);
+  }, [url, reconnectInterval, maxReconnectAttempts, setConnectionStatus, updateMarketData, addChartData, addTickToOHLC]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
