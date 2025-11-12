@@ -1,22 +1,11 @@
-// Kafka message types matching C# DTOs
+// Kafka message types for prices.ticks topic
+// Data format: Symbol, Timestamp, Bid, Ask
 
 export interface SymbolTick {
   symbol: string;
+  timestamp: string; // ISO 8601 string or timestamp
   bid: number;
   ask: number;
-  bidSize: number;
-  askSize: number;
-  timestamp: string; // ISO 8601 string from C# DateTime
-}
-
-export interface PairTick {
-  pairSymbol: string; // e.g., "BTC/ETH"
-  baseSymbol: string;
-  quoteSymbol: string;
-  hedgeRate: number;
-  bid: number;
-  ask: number;
-  timestamp: string; // ISO 8601 string from C# DateTime
 }
 
 export interface KafkaMessage<T> {

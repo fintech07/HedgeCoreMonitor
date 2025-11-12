@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useDashboardStore } from '../stores/dashboardStore';
-import type { SymbolTick, PairTick } from '../types/kafka';
+import type { SymbolTick } from '../types/kafka';
 
 interface UseWebSocketOptions {
   url: string;
@@ -11,7 +11,7 @@ interface UseWebSocketOptions {
 interface KafkaMessage {
   topic: string;
   key: string;
-  value: SymbolTick | PairTick;
+  value: SymbolTick;
 }
 
 export const useWebSocket = ({
@@ -43,26 +43,26 @@ export const useWebSocket = ({
         try {
           const message: KafkaMessage = JSON.parse(event.data);
           
-          // Only handle SymbolTick messages from prices.ticks topic
+          // Handle prices.ticks topic (format: Symbol, Timestamp, Bid, Ask)
           if (message.topic === 'prices.ticks') {
-            const tick = message.value as SymbolTick;
+            const tick = message.value;
             const bid = Number(tick.bid);
             const ask = Number(tick.ask);
             const midPrice = (bid + ask) / 2;
             
             console.log(`📊 ${tick.symbol} | Bid: ${bid.toFixed(4)} | Ask: ${ask.toFixed(4)} | Mid: ${midPrice.toFixed(4)}`);
             
-            // Update market data table with full tick info
+            // Update market data table
             updateMarketData(tick.symbol, {
               symbol: tick.symbol,
               price: midPrice,
               bid: bid,
               ask: ask,
-              bidSize: Number(tick.bidSize),
-              askSize: Number(tick.askSize),
+              bidSize: 0, // Not available in simplified format
+              askSize: 0, // Not available in simplified format
               change: 0, // Calculate based on previous price if needed
               changePercent: 0,
-              volume: Number(tick.bidSize) + Number(tick.askSize),
+              volume: 0, // Not available in simplified format
               timestamp: new Date(tick.timestamp).getTime(),
             });
 
@@ -75,7 +75,6 @@ export const useWebSocket = ({
             // Add tick to OHLC aggregation
             addTickToOHLC(tick.symbol, midPrice, new Date(tick.timestamp).getTime());
           }
-          // Ignore prices.pairs messages
         } catch (error) {
           console.error('❌ Error processing WebSocket message:', error);
         }
