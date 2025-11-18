@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { useIndicatorStore } from '../stores/indicatorStore';
 
 export const IndicatorPanel = memo(() => {
-  const { settings, toggleIndicator } = useIndicatorStore();
+  const { settings, updateIndicator, toggleIndicator } = useIndicatorStore();
 
   return (
     <div style={{
@@ -31,7 +31,7 @@ export const IndicatorPanel = memo(() => {
         📊 Indicators
       </div>
 
-      {/* Moving Averages */}
+      {/* SMA */}
       <div style={{ marginBottom: '12px' }}>
         <label style={{
           display: 'flex',
@@ -52,18 +52,31 @@ export const IndicatorPanel = memo(() => {
         </label>
         {settings.sma.enabled && (
           <div style={{ marginLeft: '24px', fontSize: '10px', color: '#787B86' }}>
-            <div>Periods: {settings.sma.periods.join(', ')}</div>
-            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-              {settings.sma.periods.map((period, i) => (
-                <div key={i} style={{
-                  width: '12px',
-                  height: '12px',
-                  backgroundColor: settings.sma.colors[i],
-                  borderRadius: '2px',
-                  border: '1px solid #2A2E39',
-                }} title={`SMA ${period}`} />
-              ))}
-            </div>
+            {settings.sma.periods.map((period, idx) => (
+              <label key={idx} style={{ display: 'block', marginBottom: '4px' }}>
+                Period {idx + 1}:
+                <input
+                  type="number"
+                  value={period}
+                  min={2}
+                  max={200}
+                  onChange={e => {
+                    const newPeriods = [...settings.sma.periods];
+                    newPeriods[idx] = Number(e.target.value);
+                    updateIndicator('sma', { periods: newPeriods });
+                  }}
+                  style={{
+                    width: '60px',
+                    marginLeft: '8px',
+                    padding: '2px',
+                    borderRadius: '4px',
+                    border: '1px solid #2A2E39',
+                    background: '#111217',
+                    color: '#D1D4DC',
+                  }}
+                />
+              </label>
+            ))}
           </div>
         )}
       </div>
@@ -89,18 +102,31 @@ export const IndicatorPanel = memo(() => {
         </label>
         {settings.ema.enabled && (
           <div style={{ marginLeft: '24px', fontSize: '10px', color: '#787B86' }}>
-            <div>Periods: {settings.ema.periods.join(', ')}</div>
-            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-              {settings.ema.periods.map((period, i) => (
-                <div key={i} style={{
-                  width: '12px',
-                  height: '12px',
-                  backgroundColor: settings.ema.colors[i],
-                  borderRadius: '2px',
-                  border: '1px solid #2A2E39',
-                }} title={`EMA ${period}`} />
-              ))}
-            </div>
+            {settings.ema.periods.map((period, idx) => (
+              <label key={idx} style={{ display: 'block', marginBottom: '4px' }}>
+                Period {idx + 1}:
+                <input
+                  type="number"
+                  value={period}
+                  min={2}
+                  max={200}
+                  onChange={e => {
+                    const newPeriods = [...settings.ema.periods];
+                    newPeriods[idx] = Number(e.target.value);
+                    updateIndicator('ema', { periods: newPeriods });
+                  }}
+                  style={{
+                    width: '60px',
+                    marginLeft: '8px',
+                    padding: '2px',
+                    borderRadius: '4px',
+                    border: '1px solid #2A2E39',
+                    background: '#111217',
+                    color: '#D1D4DC',
+                  }}
+                />
+              </label>
+            ))}
           </div>
         )}
       </div>
@@ -126,17 +152,49 @@ export const IndicatorPanel = memo(() => {
         </label>
         {settings.bollingerBands.enabled && (
           <div style={{ marginLeft: '24px', fontSize: '10px', color: '#787B86' }}>
-            <div>Period: {settings.bollingerBands.period}</div>
-            <div>Std Dev: {settings.bollingerBands.stdDev}</div>
-            <div style={{
-              marginTop: '4px',
-              padding: '4px 6px',
-              background: `${settings.bollingerBands.upperColor}${Math.round(settings.bollingerBands.fillOpacity * 255).toString(16).padStart(2, '0')}`,
-              borderRadius: '2px',
-              border: `1px solid ${settings.bollingerBands.upperColor}`,
-            }}>
-              Band Fill
-            </div>
+            <label style={{ display: 'block', marginBottom: '4px' }}>
+              Period:
+              <input
+                type="number"
+                value={settings.bollingerBands.period}
+                min={2}
+                max={200}
+                onChange={e =>
+                  updateIndicator('bollingerBands', { period: Number(e.target.value) })
+                }
+                style={{
+                  width: '60px',
+                  marginLeft: '8px',
+                  padding: '2px',
+                  borderRadius: '4px',
+                  border: '1px solid #2A2E39',
+                  background: '#111217',
+                  color: '#D1D4DC',
+                }}
+              />
+            </label>
+            <label style={{ display: 'block', marginBottom: '4px' }}>
+              StdDev:
+              <input
+                type="number"
+                value={settings.bollingerBands.stdDev}
+                min={1}
+                max={5}
+                step={0.1}
+                onChange={e =>
+                  updateIndicator('bollingerBands', { stdDev: Number(e.target.value) })
+                }
+                style={{
+                  width: '60px',
+                  marginLeft: '8px',
+                  padding: '2px',
+                  borderRadius: '4px',
+                  border: '1px solid #2A2E39',
+                  background: '#111217',
+                  color: '#D1D4DC',
+                }}
+              />
+            </label>
           </div>
         )}
       </div>
@@ -162,13 +220,27 @@ export const IndicatorPanel = memo(() => {
         </label>
         {settings.trix.enabled && (
           <div style={{ marginLeft: '24px', fontSize: '10px', color: '#787B86' }}>
-            <div>Period: {settings.trix.period}</div>
-            <div style={{
-              marginTop: '4px',
-              width: '40px',
-              height: '2px',
-              backgroundColor: settings.trix.color,
-            }} />
+            <label style={{ display: 'block', marginBottom: '4px' }}>
+              Period:
+              <input
+                type="number"
+                value={settings.trix.period}
+                min={2}
+                max={100}
+                onChange={e =>
+                  updateIndicator('trix', { period: Number(e.target.value) })
+                }
+                style={{
+                  width: '60px',
+                  marginLeft: '8px',
+                  padding: '2px',
+                  borderRadius: '4px',
+                  border: '1px solid #2A2E39',
+                  background: '#111217',
+                  color: '#D1D4DC',
+                }}
+              />
+            </label>
           </div>
         )}
       </div>
@@ -194,13 +266,27 @@ export const IndicatorPanel = memo(() => {
         </label>
         {settings.rsi.enabled && (
           <div style={{ marginLeft: '24px', fontSize: '10px', color: '#787B86' }}>
-            <div>Period: {settings.rsi.period}</div>
-            <div style={{
-              marginTop: '4px',
-              width: '40px',
-              height: '2px',
-              backgroundColor: settings.rsi.color,
-            }} />
+            <label style={{ display: 'block', marginBottom: '4px' }}>
+              Period:
+              <input
+                type="number"
+                value={settings.rsi.period}
+                min={2}
+                max={100}
+                onChange={e =>
+                  updateIndicator('rsi', { period: Number(e.target.value) })
+                }
+                style={{
+                  width: '60px',
+                  marginLeft: '8px',
+                  padding: '2px',
+                  borderRadius: '4px',
+                  border: '1px solid #2A2E39',
+                  background: '#111217',
+                  color: '#D1D4DC',
+                }}
+              />
+            </label>
           </div>
         )}
       </div>
