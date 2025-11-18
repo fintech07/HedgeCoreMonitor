@@ -73,7 +73,7 @@ export interface BollingerBands {
 
 export function calculateBollingerBands(
   data: OHLCData[],
-  period: number = 20,
+  period: number = 180,
   stdDev: number = 2
 ): BollingerBands {
   const middle = calculateSMA(data, period);
