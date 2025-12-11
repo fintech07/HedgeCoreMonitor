@@ -2,7 +2,7 @@ import { Kafka } from 'kafkajs';
 import { WebSocketServer } from 'ws';
 
 // Configuration
-const KAFKA_BROKERS = ['localhost:9092']; // Update with your Kafka broker
+const KAFKA_BROKERS = ['127.0.0.1:9092']; // Update with your Kafka broker
 const KAFKA_GROUP_ID = 'websocket-proxy-group';
 const KAFKA_TOPICS = ['prices.ticks', 'prices.pairs'];
 const WEBSOCKET_PORT = 8080;

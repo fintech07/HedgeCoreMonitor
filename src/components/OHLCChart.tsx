@@ -136,11 +136,24 @@ export const OHLCChart = memo(() => {
     // Get OHLC data for selected symbol
     const ohlcData = selectedSymbol ? (ohlcDataBySymbol[selectedSymbol] || []) : [];
 
-    // Set canvas size
+    // Set canvas size with high-DPI support for crisp rendering
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Set actual canvas size in memory (scaled up for high-DPI)
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    
+    // Scale the canvas down using CSS (for display)
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    
+    // Scale the drawing context so everything draws at high-DPI
+    ctx.scale(dpr, dpr);
+    
+    // Enable high-quality rendering for crisp lines and bars
+    ctx.imageSmoothingEnabled = false; // Better for sharp OHLC bars
+    ctx.lineWidth = 1;
 
     // TradingView-style background
     ctx.fillStyle = '#131722';
@@ -157,7 +170,7 @@ export const OHLCChart = memo(() => {
 
     if (ohlcData.length < 1) {
       // Show "Waiting for data..." message
-      ctx.fillStyle = '#787B86';
+      ctx.fillStyle = '#181a20';
       ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(`Waiting for ${selectedSymbol} data...`, rect.width / 2, rect.height / 2);
@@ -195,14 +208,14 @@ export const OHLCChart = memo(() => {
     const barWidth = Math.max(2, viewport.barWidth * 0.7);
     const barSpacing = viewport.barWidth;
 
-    // Draw TradingView-style grid
+    // Draw TradingView-style grid with crisp horizontal lines
     ctx.strokeStyle = '#2A2E39';
     ctx.lineWidth = 1;
     
-    // Horizontal grid lines (6-8 lines)
+    // Horizontal grid lines (6-8 lines) - pixel-perfect positioning
     const gridLines = 8;
     for (let i = 0; i <= gridLines; i++) {
-      const y = topPadding + (chartHeight / gridLines) * i;
+      const y = Math.round(topPadding + (chartHeight / gridLines) * i) + 0.5; // Crisp 1px line
       ctx.beginPath();
       ctx.moveTo(leftPadding, y);
       ctx.lineTo(leftPadding + chartWidth, y);
@@ -226,20 +239,21 @@ export const OHLCChart = memo(() => {
       return topPadding + chartHeight - ((price - minPriceWithPadding) / adjustedPriceRange) * chartHeight;
     };
 
-    // Draw OHLC bars (only visible ones)
+    // Draw OHLC bars (only visible ones) - with crisp pixel-perfect positioning
     visibleBars.forEach((bar, index) => {
-      const x = leftPadding + index * barSpacing + barSpacing / 2;
+      // Pixel-perfect positioning: round to nearest pixel and add 0.5 for crisp 1px lines
+      const x = Math.round(leftPadding + index * barSpacing + barSpacing / 2) + 0.5;
       
-      const openY = priceToY(bar.open);
-      const highY = priceToY(bar.high);
-      const lowY = priceToY(bar.low);
-      const closeY = priceToY(bar.close);
+      const openY = Math.round(priceToY(bar.open)) + 0.5;
+      const highY = Math.round(priceToY(bar.high)) + 0.5;
+      const lowY = Math.round(priceToY(bar.low)) + 0.5;
+      const closeY = Math.round(priceToY(bar.close)) + 0.5;
       
       // Determine color (TradingView colors: green/red)
       const isUp = bar.close >= bar.open;
-      const color = isUp ? '#089981' : '#F23645'; // TradingView green/red
+      const color = isUp ? '#0ECB81' : '#ef5350'; // TradingView green/red
       
-      // Draw high-low line (wick)
+      // Draw high-low line (wick) - crisp 1px line
       ctx.strokeStyle = color;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -247,21 +261,28 @@ export const OHLCChart = memo(() => {
       ctx.lineTo(x, lowY);
       ctx.stroke();
       
-      // Draw open-close bar (body)
+      // Draw open-close bar (body) - pixel-aligned rectangles
       ctx.fillStyle = color;
       const bodyHeight = Math.abs(closeY - openY);
       const bodyY = Math.min(openY, closeY);
       
+      // Ensure minimum 1px height for visibility and crisp rendering
+      const crispBodyHeight = Math.max(1, Math.round(bodyHeight));
+      const crispBodyY = Math.round(bodyY);
+      const crispBarWidth = Math.max(1, Math.round(barWidth));
+      const crispBarX = Math.round(x - barWidth / 2);
+      
       // If body is too small, draw a line
-      if (bodyHeight < 1) {
-        ctx.fillRect(x - barWidth / 2, bodyY, barWidth, 1);
+      if (crispBodyHeight <= 1) {
+        ctx.fillRect(crispBarX, crispBodyY, crispBarWidth, 1);
       } else {
-        // Draw filled candlestick (both up and down are filled)
+        // Draw filled candlestick (both up and down are filled) with crisp edges
         ctx.fillStyle = color;
-        ctx.fillRect(x - barWidth / 2, bodyY, barWidth, bodyHeight);
+        ctx.fillRect(crispBarX, crispBodyY, crispBarWidth, crispBodyHeight);
       }
       
       // Draw small tick marks on left for open and right for close
+      /*
       ctx.strokeStyle = color;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -273,6 +294,7 @@ export const OHLCChart = memo(() => {
       ctx.moveTo(x + barWidth / 2, closeY);
       ctx.lineTo(x + barWidth / 2 + 3, closeY);
       ctx.stroke();
+      */
     });
 
     // ========== DRAW INDICATORS ==========
@@ -388,12 +410,14 @@ export const OHLCChart = memo(() => {
     ctx.textBaseline = 'middle';
     
     for (let i = 0; i <= gridLines; i++) {
-      const y = topPadding + (chartHeight / gridLines) * i;
+      const y = Math.round(topPadding + (chartHeight / gridLines) * i) + 0.5;
       const price = maxPriceWithPadding - (adjustedPriceRange / gridLines) * i;
       
-      // Draw price label
+      // Draw price label with pixel-perfect positioning
       ctx.fillStyle = '#787B86';
-      ctx.fillText(price.toFixed(4), leftPadding + chartWidth + rightPadding + 8, y);
+      const textX = Math.round(leftPadding + chartWidth + rightPadding + 8);
+      const textY = Math.round(y); // Remove 0.5 offset for text (text doesn't need it)
+      ctx.fillText(price.toFixed(4), textX, textY);
       
       // Draw small tick mark
       ctx.strokeStyle = '#2A2E39';
@@ -615,11 +639,24 @@ export const OHLCChart = memo(() => {
     // Get OHLC data for selected symbol
     const ohlcData = selectedSymbol ? (ohlcDataBySymbol[selectedSymbol] || []) : [];
 
-    // Set canvas size
+    // Set canvas size with high-DPI support for crisp rendering
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Set actual canvas size in memory (scaled up for high-DPI)
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    
+    // Scale the canvas down using CSS (for display)
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    
+    // Scale the drawing context so everything draws at high-DPI
+    ctx.scale(dpr, dpr);
+    
+    // Enable high-quality rendering
+    ctx.imageSmoothingEnabled = false;
+    ctx.lineWidth = 1;
 
     // TradingView-style background
     ctx.fillStyle = '#131722';
